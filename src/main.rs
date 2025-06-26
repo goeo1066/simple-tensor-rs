@@ -4,6 +4,9 @@ fn main() {
     tensor.set(&[0, 1, 1], 1f32);
     tensor.set(&[1, 1, 2], 3f32);
 
+    println!("(0, 1, 1) = {}", tensor.flatten_pos(&[0, 1, 1]));
+    println!("(1, 1, 2) = {}", tensor.flatten_pos(&[1, 1, 2]));
+
     println!("(0, 1, 1) = {}", tensor.get(&[0, 1, 1]));
     println!("(1, 1, 2) = {}", tensor.get(&[1, 1, 2]));
 
@@ -44,7 +47,7 @@ fn main() {
     tensor3d.set(&[1, 1, 0, 1], 14f32);
     tensor3d.set(&[1, 1, 1, 0], 15f32);
     tensor3d.set(&[1, 1, 1, 1], 16f32);
-    
+
     for a in 0..2 {
         for b in 0..2 {
             for c in 0..2 {
@@ -97,33 +100,27 @@ impl Tensor2D {
 }
 
 struct Tensor {
-    pos_base: usize,
     shape: Box<[usize]>,
     array: Box<[f32]>,
 }
 
 impl Tensor {
     pub fn new(shape: &[usize]) -> Self {
-        let array: Box<[f32]>;
-        let mut size = 1usize;
+        let size = {
+            let mut size = 1;
+            for x in shape {
+                size *= x;
+            }
+            size
+        };
 
-        for x in shape {
-            size *= x;
-        }
-
-        if size == 0 {
-            array = vec![].into_boxed_slice();
+        let array: Box<[f32]> = if size == 0 {
+            vec![].into_boxed_slice()
         } else {
-            array = vec![0f32; size].into_boxed_slice();
-        }
-
-        let mut pos_base = 1;
-        for i in 0..shape.len() - 1 {
-            pos_base *= shape[i];
-        }
+            vec![0f32; size].into_boxed_slice()
+        };
 
         Tensor {
-            pos_base,
             shape: shape.into(),
             array,
         }
@@ -142,16 +139,15 @@ impl Tensor {
     }
 
     fn flatten_pos(&self, pos: &[usize]) -> usize {
-        let mut result = 0;
+        let mut result = pos[pos.len() - 1];
+        let mut pos_base = 1;
 
-        let mut pos_base = self.pos_base;
-        for i in 0..pos.len() - 1 {
+        for i in (0..pos.len() - 1).rev() {
+            pos_base *= self.shape[i];
             result += pos[i] * pos_base;
-            pos_base /= self.shape[i];
         }
 
-        result += pos[pos.len() - 1];
-        result as usize
+        result
     }
 
     fn assert_match_shape(&self, shape: &[usize]) {
